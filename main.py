@@ -10,17 +10,15 @@ def setup_driver():
 
     options = webdriver.ChromeOptions()
 
-    # BrowserStack specific capabilities
-    bstack_options = {
-        "os": "Windows",
-        "osVersion": "11",
-        "sessionName": "ElPais Opinion Scraper Assignment",
-        "buildName": "ElPais Automation Build"
-    }
-
     options.set_capability("browserName", "Chrome")
     options.set_capability("browserVersion", "latest")
-    options.set_capability("bstack:options", bstack_options)
+
+    options.set_capability("bstack:options", {
+        "os": "Windows",
+        "osVersion": "11",
+        "buildName": "ElPais Automation Build",
+        "sessionName": "ElPais Opinion Scraper Assignment"
+    })
 
     driver = webdriver.Remote(
         command_executor=f"https://{USERNAME}:{ACCESS_KEY}@hub-cloud.browserstack.com/wd/hub",
@@ -30,12 +28,12 @@ def setup_driver():
     return driver
 
 
+
 def main():
     driver = setup_driver()
 
     try:
         article_urls = get_opinion_articles(driver)
-
         translated_titles = []
 
         for i, url in enumerate(article_urls):
@@ -47,6 +45,20 @@ def main():
             translated_titles.append(translated)
 
         analyze_titles(translated_titles)
+
+        # Mark session as PASSED in BrowserStack
+        driver.execute_script(
+            'browserstack_executor: {"action": "setSessionStatus", '
+            '"arguments": {"status":"passed","reason": "ElPais scraper executed successfully"}}'
+        )
+
+    except Exception as e:
+        # Mark session as FAILED in BrowserStack
+        driver.execute_script(
+            f'browserstack_executor: {{"action": "setSessionStatus", '
+            f'"arguments": {{"status":"failed","reason": "{str(e)}"}}}}'
+        )
+        raise e
 
     finally:
         driver.quit()
